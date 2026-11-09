@@ -1,0 +1,1302 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ZenSpa 3D - Dịch Vụ Massage Online</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
+  <!-- Three.js & OrbitControls via CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <!-- Canvas Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <style>
+    :root {
+      --primary: #d4a373;
+      --primary-dark: #b07d4f;
+      --primary-light: #faedcd;
+      --bg-dark: #121516;
+      --bg-card: rgba(26, 30, 32, 0.75);
+      --border-card: rgba(212, 163, 115, 0.25);
+      --text-main: #fefae0;
+      --text-muted: #a3b18a;
+      --accent: #e07a5f;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: var(--bg-dark);
+      color: var(--text-main);
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+    }
+
+    #canvas3d {
+      width: 100vw;
+      height: 100vh;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    /* Modal Nhập Tên Ban Đầu */
+    #welcomeModal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 100;
+      background: radial-gradient(circle at center, rgba(30, 24, 20, 0.85) 0%, rgba(10, 12, 13, 0.96) 100%);
+      backdrop-filter: blur(12px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.8s ease, visibility 0.8s ease;
+    }
+
+    #welcomeModal.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .welcome-card {
+      background: rgba(30, 35, 38, 0.85);
+      border: 1px solid var(--border-card);
+      border-radius: 28px;
+      padding: 40px;
+      max-width: 460px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(212, 163, 115, 0.15);
+      animation: popIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes popIn {
+      0% { opacity: 0; transform: scale(0.9) translateY(20px); }
+      100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .welcome-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 16px;
+      background: rgba(212, 163, 115, 0.15);
+      border: 1px solid var(--border-card);
+      border-radius: 99px;
+      font-size: 0.8rem;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 16px;
+    }
+
+    .welcome-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 2.2rem;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+
+    .welcome-subtitle {
+      font-size: 0.95rem;
+      color: #c5cec6;
+      line-height: 1.5;
+      margin-bottom: 28px;
+    }
+
+    .input-group {
+      margin-bottom: 24px;
+      text-align: left;
+    }
+
+    .input-label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--primary-light);
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    .name-input {
+      width: 100%;
+      padding: 16px 20px;
+      background: rgba(18, 21, 22, 0.85);
+      border: 1.5px solid rgba(212, 163, 115, 0.4);
+      border-radius: 14px;
+      color: #fff;
+      font-size: 1.05rem;
+      font-family: inherit;
+      outline: none;
+      transition: all 0.3s ease;
+    }
+
+    .name-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 16px rgba(212, 163, 115, 0.35);
+    }
+
+    .btn-start {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #d4a373 0%, #b07d4f 100%);
+      color: #1a1614;
+      font-weight: 700;
+      font-size: 1.05rem;
+      border: none;
+      border-radius: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: all 0.3s ease;
+      box-shadow: 0 8px 24px rgba(212, 163, 115, 0.3);
+    }
+
+    .btn-start:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px rgba(212, 163, 115, 0.5);
+    }
+
+    .btn-start:active {
+      transform: translateY(0);
+    }
+
+    /* GIAO DIỆN CHÍNH */
+    .ui-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 10;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 24px;
+    }
+
+    .ui-interactive {
+      pointer-events: auto;
+    }
+
+    /* Header Bar */
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+    }
+
+    .brand-pill {
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      backdrop-filter: blur(12px);
+      padding: 10px 20px;
+      border-radius: 99px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      font-size: 1.4rem;
+    }
+
+    .client-status {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .client-greeting {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+    }
+
+    .client-name-display {
+      font-weight: 700;
+      font-size: 0.98rem;
+      color: var(--primary-light);
+    }
+
+    .stress-meter-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      backdrop-filter: blur(12px);
+      padding: 10px 18px;
+      border-radius: 18px;
+      min-width: 200px;
+    }
+
+    .stress-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #ccd5ae;
+      margin-bottom: 6px;
+    }
+
+    .stress-bar-bg {
+      width: 100%;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .stress-bar-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #d4a373, #52b788);
+      border-radius: 99px;
+      transition: width 0.4s ease;
+    }
+
+    /* Thanh chọn góc nhìn (View Angle Bar) */
+    .camera-angles-bar {
+      position: absolute;
+      top: 90px;
+      right: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .angle-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      backdrop-filter: blur(10px);
+      padding: 10px 16px;
+      border-radius: 14px;
+      color: #fff;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: all 0.25s ease;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .angle-btn:hover {
+      background: rgba(212, 163, 115, 0.25);
+      border-color: var(--primary);
+      transform: translateX(-4px);
+    }
+
+    .angle-btn.active {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: #1a1614;
+      border-color: transparent;
+      box-shadow: 0 4px 16px rgba(212, 163, 115, 0.4);
+    }
+
+    /* Thanh điều khiển massage bên dưới */
+    .bottom-controls-container {
+      width: 100%;
+      max-width: 900px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .therapy-modes {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    .therapy-card {
+      background: var(--bg-card);
+      border: 1.5px solid var(--border-card);
+      backdrop-filter: blur(14px);
+      padding: 14px 12px;
+      border-radius: 18px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 6px;
+      transition: all 0.3s ease;
+    }
+
+    .therapy-card:hover {
+      border-color: var(--primary);
+      transform: translateY(-4px);
+      background: rgba(35, 40, 44, 0.85);
+    }
+
+    .therapy-card.active {
+      background: rgba(212, 163, 115, 0.22);
+      border-color: var(--primary);
+      box-shadow: 0 0 20px rgba(212, 163, 115, 0.35);
+    }
+
+    .therapy-icon {
+      font-size: 1.8rem;
+    }
+
+    .therapy-name {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .therapy-desc {
+      font-size: 0.72rem;
+      color: #a0ac9e;
+      line-height: 1.25;
+    }
+
+    /* Sub-Controls: Tốc độ, Rung, Âm thanh */
+    .sub-controls-bar {
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      backdrop-filter: blur(14px);
+      border-radius: 18px;
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+
+    .control-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.85rem;
+      color: #e0e4dd;
+    }
+
+    .slider-range {
+      accent-color: var(--primary);
+      cursor: pointer;
+      width: 110px;
+    }
+
+    .action-icon-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #fff;
+      padding: 8px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .action-icon-btn:hover {
+      background: rgba(212, 163, 115, 0.25);
+      border-color: var(--primary);
+    }
+
+    .action-icon-btn.active {
+      background: var(--primary);
+      color: #1a1614;
+    }
+
+    /* Hiệu ứng bong bóng cảm xúc chạm vào lưng */
+    .hit-ripple {
+      position: absolute;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      font-size: 1.3rem;
+      font-weight: 800;
+      animation: floatUp 1s ease-out forwards;
+      z-index: 20;
+    }
+
+    @keyframes floatUp {
+      0% { opacity: 1; transform: translate(-50%, -50%) scale(0.6); }
+      50% { opacity: 0.9; transform: translate(-50%, -90px) scale(1.1); }
+      100% { opacity: 0; transform: translate(-50%, -130px) scale(0.9); }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .therapy-modes {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .camera-angles-bar {
+        top: auto;
+        bottom: 230px;
+        right: 14px;
+      }
+      .angle-btn span.label {
+        display: none;
+      }
+      .sub-controls-bar {
+        justify-content: center;
+      }
+      .welcome-card {
+        padding: 28px 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Khung Canvas 3D -->
+  <div id="canvas3d"></div>
+
+  <!-- POPUP BẮT ĐẦU: YÊU CẦU NHẬP TÊN -->
+  <div id="welcomeModal">
+    <div class="welcome-card">
+      <div class="welcome-badge">🌿 ZenSpa Online 3D Experience</div>
+      <h1 class="welcome-title">Massage Thư Giãn</h1>
+      <p class="welcome-subtitle">
+        Căng thẳng mỏi mệt sau giờ làm việc? Hãy để đội ngũ chuyên viên spa 3D xoa bóp, đấm lưng chăm sóc riêng cho bạn ngay trên màn hình.
+      </p>
+
+      <div class="input-group">
+        <label for="userNameInput" class="input-label">Họ và tên của bạn:</label>
+        <input type="text" id="userNameInput" class="name-input" placeholder="Ví dụ: Hoàng Anh, Linh Đan..." maxlength="25" autofocus>
+      </div>
+
+      <button id="btnStartSpa" class="btn-start">
+        <span>Bắt đầu tận hưởng</span>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+          <polyline points="12 5 19 12 12 19"></polyline>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- GIAO DIỆN CHÍNH (UI OVERLAY) -->
+  <div class="ui-layer">
+    <!-- Top Bar -->
+    <div class="top-bar ui-interactive">
+      <div class="brand-pill">
+        <span class="brand-logo">💆‍♂️</span>
+        <div class="client-status">
+          <span class="client-greeting">Đang chăm sóc VIP cho</span>
+          <span class="client-name-display" id="clientNameShow">Khách quý</span>
+        </div>
+      </div>
+
+      <div class="stress-meter-box">
+        <div class="stress-labels">
+          <span>Mức độ thư giãn:</span>
+          <span id="stressPercent">0%</span>
+        </div>
+        <div class="stress-bar-bg">
+          <div class="stress-bar-fill" id="stressFill"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Góc nhìn Camera (Multi-Angle Switcher) -->
+    <div class="camera-angles-bar ui-interactive">
+      <button class="angle-btn active" data-angle="free">
+        <span>🔄</span> <span class="label">Xoay 360° tự do</span>
+      </button>
+      <button class="angle-btn" data-angle="top">
+        <span>📐</span> <span class="label">Góc từ trên xuống</span>
+      </button>
+      <button class="angle-btn" data-angle="closeup">
+        <span>🔍</span> <span class="label">Cận cảnh cơ lưng</span>
+      </button>
+      <button class="angle-btn" data-angle="side">
+        <span>🪞</span> <span class="label">Góc nghiêng vai</span>
+      </button>
+      <button class="angle-btn" data-angle="first_person">
+        <span>🧘</span> <span class="label">POV Nằm trên gối</span>
+      </button>
+    </div>
+
+    <!-- Bottom Controls: Chọn phương pháp & điều chỉnh -->
+    <div class="bottom-controls-container ui-interactive">
+      <!-- 4 Phương pháp Massage -->
+      <div class="therapy-modes">
+        <div class="therapy-card active" data-mode="shiatsu">
+          <span class="therapy-icon">👊</span>
+          <span class="therapy-name">Đấm Lưng Shiatsu</span>
+          <span class="therapy-desc">Hai nắm tay đấm đều đặn xua tan mỏi vai gáy</span>
+        </div>
+
+        <div class="therapy-card" data-mode="oil">
+          <span class="therapy-icon">✋</span>
+          <span class="therapy-name">Xoa Bóp Tinh Dầu</span>
+          <span class="therapy-desc">Lực miết êm ái, trượt dọc cột sống thư thái</span>
+        </div>
+
+        <div class="therapy-card" data-mode="hotstone">
+          <span class="therapy-icon">🪨</span>
+          <span class="therapy-name">Đá Nóng Núi Lửa</span>
+          <span class="therapy-desc">Liệu pháp nhiệt đá bazan đả thông kinh lạc</span>
+        </div>
+
+        <div class="therapy-card" data-mode="thai">
+          <span class="therapy-icon">🎋</span>
+          <span class="therapy-name">Ống Tre Lăn Lưng</span>
+          <span class="therapy-desc">Con lăn tre cuộn tròn giải tỏa căng cứng cơ</span>
+        </div>
+      </div>
+
+      <!-- Điều chỉnh: Tốc độ, Âm thanh ASMR, Đổi tên -->
+      <div class="sub-controls-bar">
+        <div class="control-item">
+          <span>Tốc độ:</span>
+          <input type="range" id="speedSlider" class="slider-range" min="0.5" max="2.5" step="0.1" value="1.2">
+          <span id="speedVal">1.2x</span>
+        </div>
+
+        <div class="control-item">
+          <button id="toggleSoundBtn" class="action-icon-btn active">
+            <span id="soundIcon">🔊</span>
+            <span id="soundText">Âm thanh Spa</span>
+          </button>
+        </div>
+
+        <div class="control-item">
+          <button id="toggleAmbienceBtn" class="action-icon-btn active">
+            <span>🎵</span>
+            <span>Nhạc Thiền</span>
+          </button>
+        </div>
+
+        <div class="control-item">
+          <button id="renameBtn" class="action-icon-btn">
+            <span>✏️</span>
+            <span>Đổi tên</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ==========================================================
+       1. QUẢN LÝ THÔNG TIN KHÁCH HÀNG & MODAL
+       ========================================================== */
+    let clientName = "Bạn";
+    let relaxationScore = 0;
+    const welcomeModal = document.getElementById('welcomeModal');
+    const userNameInput = document.getElementById('userNameInput');
+    const btnStartSpa = document.getElementById('btnStartSpa');
+    const clientNameShow = document.getElementById('clientNameShow');
+    const stressPercent = document.getElementById('stressPercent');
+    const stressFill = document.getElementById('stressFill');
+
+    function startExperience() {
+      const inputVal = userNameInput.value.trim();
+      if (inputVal) {
+        clientName = inputVal;
+      }
+      clientNameShow.textContent = clientName;
+      welcomeModal.classList.add('hidden');
+      
+      // Khởi động Web Audio Context sau tương tác người dùng
+      initAudio();
+      playRelaxationChime();
+      startZenPad();
+
+      // Cập nhật biển tên trên mô hình 3D
+      update3DNameLabel(clientName);
+    }
+
+    btnStartSpa.addEventListener('click', startExperience);
+    userNameInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') startExperience();
+    });
+
+    document.getElementById('renameBtn').addEventListener('click', () => {
+      welcomeModal.classList.remove('hidden');
+      userNameInput.focus();
+    });
+
+    // Tăng dần điểm thư giãn
+    setInterval(() => {
+      if (!welcomeModal.classList.contains('hidden')) return;
+      if (relaxationScore < 100) {
+        relaxationScore += 1;
+        stressPercent.textContent = relaxationScore + '%';
+        stressFill.style.width = relaxationScore + '%';
+        if (relaxationScore === 100) {
+          triggerCelebration();
+        }
+      }
+    }, 1500);
+
+    function triggerCelebration() {
+      confetti({
+        particleCount: 80,
+        spread: 70,
+        origin: { y: 0.6 }
+      });
+    }
+
+    /* ==========================================================
+       2. HỆ THỐNG ÂM THANH ASMR & NHẠC THIỀN (WEB AUDIO API)
+       ========================================================== */
+    let audioCtx = null;
+    let isSoundMuted = false;
+    let isMusicPlaying = true;
+    let musicOscillator = null;
+    let musicGain = null;
+
+    function initAudio() {
+      if (audioCtx) return;
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new AudioContextClass();
+    }
+
+    // Tiếng đấm bụp bụp ASMR trầm ấm
+    function playTapSound(freq = 110, decay = 0.12) {
+      if (!audioCtx || isSoundMuted) return;
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + decay);
+        gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + decay);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + decay);
+      } catch (e) {}
+    }
+
+    // Tiếng xoa tinh dầu / đá nóng
+    function playWhooshSound() {
+      if (!audioCtx || isSoundMuted) return;
+      try {
+        const bufferSize = audioCtx.sampleRate * 0.15;
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = (Math.random() * 2 - 1) * 0.1;
+        }
+        const noise = audioCtx.createBufferSource();
+        noise.buffer = buffer;
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(400, audioCtx.currentTime);
+        filter.frequency.linearRampToValueAtTime(120, audioCtx.currentTime + 0.15);
+        const gain = audioCtx.createGain();
+        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(audioCtx.destination);
+        noise.start();
+      } catch (e) {}
+    }
+
+    // Tiếng chuông chuông thiền Singing Bowl
+    function playRelaxationChime() {
+      if (!audioCtx || isSoundMuted) return;
+      try {
+        const freqs = [528, 660, 792];
+        freqs.forEach((f, idx) => {
+          setTimeout(() => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(f, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 3.0);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 3.0);
+          }, idx * 250);
+        });
+      } catch (e) {}
+    }
+
+    // Nhạc nền thiền ambient liên tục
+    let droneNotes = [130.81, 164.81, 196.00]; // C - E - G chord
+    let droneIndex = 0;
+    function startZenPad() {
+      if (!audioCtx || !isMusicPlaying) return;
+      setInterval(() => {
+        if (!isMusicPlaying || !audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(droneNotes[droneIndex % droneNotes.length], audioCtx.currentTime);
+        droneIndex++;
+        gain.gain.setValueAtTime(0.001, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.04, audioCtx.currentTime + 2.5);
+        gain.gain.linearRampToValueAtTime(0.0001, audioCtx.currentTime + 6.0);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 6.5);
+      }, 5000);
+    }
+
+    // Nút bật/tắt âm thanh
+    document.getElementById('toggleSoundBtn').addEventListener('click', function() {
+      isSoundMuted = !isSoundMuted;
+      this.classList.toggle('active', !isSoundMuted);
+      document.getElementById('soundIcon').textContent = isSoundMuted ? '🔇' : '🔊';
+      document.getElementById('soundText').textContent = isSoundMuted ? 'Tắt âm' : 'Âm thanh Spa';
+    });
+
+    document.getElementById('toggleAmbienceBtn').addEventListener('click', function() {
+      isMusicPlaying = !isMusicPlaying;
+      this.classList.toggle('active', isMusicPlaying);
+    });
+
+    /* ==========================================================
+       3. THREE.JS - DỰNG PHÒNG SPA 3D & NGƯỜI NẰM MASSAGE
+       ========================================================== */
+    const container = document.getElementById('canvas3d');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x111416);
+    scene.fog = new THREE.FogExp2(0x111416, 0.035);
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(0, 4.5, 6);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    container.appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.maxPolarAngle = Math.PI / 2 - 0.02; // Không nhìn xuyên dưới sàn
+    controls.minDistance = 2;
+    controls.maxDistance = 14;
+    controls.target.set(0, 1.2, 0);
+
+    /* --- ÁNH SÁNG PHÒNG SPA --- */
+    const ambientLight = new THREE.AmbientLight(0xfff1e6, 0.7);
+    scene.add(ambientLight);
+
+    const warmLight = new THREE.SpotLight(0xffb703, 1.8, 18, Math.PI / 4, 0.4);
+    warmLight.position.set(3, 6, 2);
+    warmLight.castShadow = true;
+    warmLight.shadow.mapSize.width = 1024;
+    warmLight.shadow.mapSize.height = 1024;
+    scene.add(warmLight);
+
+    const candleLight = new THREE.PointLight(0xf77f00, 1.5, 5);
+    candleLight.position.set(-2, 1.8, -1);
+    scene.add(candleLight);
+
+    /* --- SÀN GỖ VÀ TƯỜNG SPA --- */
+    // Sàn gỗ spa
+    const floorGeo = new THREE.PlaneGeometry(24, 24);
+    const floorMat = new THREE.MeshStandardMaterial({
+      color: 0x1c1714,
+      roughness: 0.8,
+      metalness: 0.1
+    });
+    const floor = new THREE.Mesh(floorGeo, floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    // Thảm tròn tre dưới bàn massage
+    const rugGeo = new THREE.CircleGeometry(4, 32);
+    const rugMat = new THREE.MeshStandardMaterial({ color: 0x2b241d, roughness: 0.9 });
+    const rug = new THREE.Mesh(rugGeo, rugMat);
+    rug.rotation.x = -Math.PI / 2;
+    rug.position.y = 0.01;
+    rug.receiveShadow = true;
+    scene.add(rug);
+
+    /* --- BÀN MASSAGE CHUYÊN NGHIỆP --- */
+    const tableGroup = new THREE.Group();
+    
+    // Đệm massage trắng kem
+    const mattressGeo = new THREE.BoxGeometry(1.6, 0.35, 3.8);
+    const mattressMat = new THREE.MeshStandardMaterial({
+      color: 0xf4f1de,
+      roughness: 0.5,
+      metalness: 0.05
+    });
+    const mattress = new THREE.Mesh(mattressGeo, mattressMat);
+    mattress.position.y = 1.1;
+    mattress.castShadow = true;
+    mattress.receiveShadow = true;
+    tableGroup.add(mattress);
+
+    // Khung gỗ bàn
+    const tableBaseGeo = new THREE.BoxGeometry(1.5, 0.15, 3.7);
+    const tableBaseMat = new THREE.MeshStandardMaterial({ color: 0x5c4033, roughness: 0.6 });
+    const tableBase = new THREE.Mesh(tableBaseGeo, tableBaseMat);
+    tableBase.position.y = 0.9;
+    tableGroup.add(tableBase);
+
+    // 4 Chân bàn gỗ
+    const legGeo = new THREE.CylinderGeometry(0.06, 0.06, 0.9, 16);
+    const legMat = new THREE.MeshStandardMaterial({ color: 0x3d2b1f });
+    const legPositions = [
+      [-0.65, 0.45, -1.6],
+      [0.65, 0.45, -1.6],
+      [-0.65, 0.45, 1.6],
+      [0.65, 0.45, 1.6]
+    ];
+    legPositions.forEach(pos => {
+      const leg = new THREE.Mesh(legGeo, legMat);
+      leg.position.set(...pos);
+      leg.castShadow = true;
+      tableGroup.add(leg);
+    });
+
+    // Gối đỡ đầu có lỗ thở tròn
+    const headrestGeo = new THREE.TorusGeometry(0.24, 0.08, 16, 32);
+    const headrestMat = new THREE.MeshStandardMaterial({ color: 0xf4f1de });
+    const headrest = new THREE.Mesh(headrestGeo, headrestMat);
+    headrest.rotation.x = Math.PI / 2;
+    headrest.position.set(0, 1.28, -1.8);
+    tableGroup.add(headrest);
+
+    scene.add(tableGroup);
+
+    /* --- CƠ THỂ NGƯỜI NẰM XẤP THƯ GIÃN (MÔ PHỎNG KHÁCH HÀNG) --- */
+    const humanGroup = new THREE.Group();
+
+    // Lưng & Thân người (Torso)
+    const torsoGeo = new THREE.BoxGeometry(0.9, 0.3, 1.5);
+    const skinMat = new THREE.MeshStandardMaterial({
+      color: 0xe0a97d,
+      roughness: 0.6,
+      metalness: 0.0
+    });
+    const torso = new THREE.Mesh(torsoGeo, skinMat);
+    torso.position.set(0, 1.35, -0.4);
+    torso.castShadow = true;
+    torso.receiveShadow = true;
+    humanGroup.add(torso);
+
+    // Cột sống & rãnh lưng (Chi tiết thẩm mỹ)
+    const spineGeo = new THREE.CylinderGeometry(0.05, 0.05, 1.4, 16);
+    const spineMat = new THREE.MeshStandardMaterial({ color: 0xd2976c, roughness: 0.7 });
+    const spine = new THREE.Mesh(spineGeo, spineMat);
+    spine.rotation.x = Math.PI / 2;
+    spine.position.set(0, 1.48, -0.4);
+    humanGroup.add(spine);
+
+    // Khăn spa phủ hông và chân
+    const towelGeo = new THREE.BoxGeometry(1.0, 0.28, 1.6);
+    const towelMat = new THREE.MeshStandardMaterial({
+      color: 0x81b29a,
+      roughness: 0.9,
+      bumpScale: 0.05
+    });
+    const towel = new THREE.Mesh(towelGeo, towelMat);
+    towel.position.set(0, 1.34, 1.1);
+    towel.castShadow = true;
+    humanGroup.add(towel);
+
+    // Đầu (úp mặt vào gối)
+    const headGeo = new THREE.SphereGeometry(0.26, 24, 24);
+    const head = new THREE.Mesh(headGeo, skinMat);
+    head.scale.set(0.9, 0.9, 1.1);
+    head.position.set(0, 1.35, -1.55);
+    humanGroup.add(head);
+
+    // Hai cánh tay gập thư giãn hai bên
+    const armGeo = new THREE.CylinderGeometry(0.09, 0.08, 1.1, 16);
+    const leftArm = new THREE.Mesh(armGeo, skinMat);
+    leftArm.rotation.x = Math.PI / 4;
+    leftArm.rotation.z = -Math.PI / 6;
+    leftArm.position.set(-0.55, 1.25, -1.0);
+    humanGroup.add(leftArm);
+
+    const rightArm = new THREE.Mesh(armGeo, skinMat);
+    rightArm.rotation.x = Math.PI / 4;
+    rightArm.rotation.z = Math.PI / 6;
+    rightArm.position.set(0.55, 1.25, -1.0);
+    humanGroup.add(rightArm);
+
+    scene.add(humanGroup);
+
+    /* --- BIỂN TÊN KHÁCH HÀNG 3D TRÊN ĐẦU GIƯỜNG --- */
+    let nameCanvas, nameTexture, nameMesh;
+    function create3DNameSign() {
+      nameCanvas = document.createElement('canvas');
+      nameCanvas.width = 512;
+      nameCanvas.height = 128;
+      nameTexture = new THREE.CanvasTexture(nameCanvas);
+      const signGeo = new THREE.PlaneGeometry(1.2, 0.3);
+      const signMat = new THREE.MeshBasicMaterial({ map: nameTexture, transparent: true, side: THREE.DoubleSide });
+      nameMesh = new THREE.Mesh(signGeo, signMat);
+      nameMesh.position.set(0, 2.05, -2.2);
+      scene.add(nameMesh);
+    }
+    create3DNameSign();
+
+    function update3DNameLabel(name) {
+      const ctx = nameCanvas.getContext('2d');
+      ctx.clearRect(0, 0, nameCanvas.width, nameCanvas.height);
+      
+      // Vẽ background biển hiệu gỗ bo góc
+      ctx.fillStyle = 'rgba(26, 30, 32, 0.85)';
+      ctx.strokeStyle = '#d4a373';
+      ctx.lineWidth = 6;
+      roundRect(ctx, 10, 10, 492, 108, 20, true, true);
+
+      // Chữ tên khách hàng
+      ctx.fillStyle = '#faedcd';
+      ctx.font = 'bold 36px "Plus Jakarta Sans", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText("🌿 VIP: " + name, 256, 64);
+      nameTexture.needsUpdate = true;
+    }
+
+    function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + width - radius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+      ctx.lineTo(x + width, y + height - radius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      ctx.lineTo(x + radius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+      if (fill) ctx.fill();
+      if (stroke) ctx.stroke();
+    }
+
+    /* --- TRANG TRÍ PHÒNG SPA: HOA SEN, NẾN THƠM, CÂY TRÚC --- */
+    // Bàn phụ đặt nến & hoa
+    const sideTableGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.9, 24);
+    const sideTableMat = new THREE.MeshStandardMaterial({ color: 0x3d2b1f });
+    const sideTable = new THREE.Mesh(sideTableGeo, sideTableMat);
+    sideTable.position.set(-1.8, 0.45, -0.8);
+    scene.add(sideTable);
+
+    // Chân nến & ngọn lửa nến
+    const candleGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.25, 16);
+    const candleMat = new THREE.MeshStandardMaterial({ color: 0xfefae0 });
+    const candleMesh = new THREE.Mesh(candleGeo, candleMat);
+    candleMesh.position.set(-1.8, 1.02, -0.8);
+    scene.add(candleMesh);
+
+    // Bát hoa sen thơm ngát
+    const bowlGeo = new THREE.CylinderGeometry(0.22, 0.12, 0.1, 16);
+    const bowlMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+    const bowl = new THREE.Mesh(bowlGeo, bowlMat);
+    bowl.position.set(-1.8, 0.95, -0.4);
+    scene.add(bowl);
+
+    /* --- CÁC CÔNG CỤ MASSAGE 3D (ĐÔI TAY, ĐÁ NÓNG, ỐNG TRE) --- */
+    const massageToolsGroup = new THREE.Group();
+    scene.add(massageToolsGroup);
+
+    // 1. Đôi tay massage (Shiatsu / Xoa bóp)
+    const handGroup = new THREE.Group();
+    const handMat = new THREE.MeshStandardMaterial({ color: 0xf3c59a, roughness: 0.5 });
+    
+    // Tay trái
+    const handLeft = new THREE.Mesh(new THREE.SphereGeometry(0.13, 16, 16), handMat);
+    handLeft.scale.set(0.9, 0.7, 1.2);
+    handGroup.add(handLeft);
+
+    // Tay phải
+    const handRight = new THREE.Mesh(new THREE.SphereGeometry(0.13, 16, 16), handMat);
+    handRight.scale.set(0.9, 0.7, 1.2);
+    handGroup.add(handRight);
+    massageToolsGroup.add(handGroup);
+
+    // 2. Bộ 4 Viên đá nóng Bazan
+    const hotStonesGroup = new THREE.Group();
+    const stoneMat = new THREE.MeshStandardMaterial({
+      color: 0x181818,
+      roughness: 0.3,
+      metalness: 0.2,
+      emissive: 0xff3e00,
+      emissiveIntensity: 0.25
+    });
+    const stoneGeo = new THREE.CylinderGeometry(0.12, 0.14, 0.07, 16);
+    const stones = [];
+    for (let i = 0; i < 4; i++) {
+      const s = new THREE.Mesh(stoneGeo, stoneMat);
+      s.position.set(0, 1.54, -0.9 + i * 0.35);
+      s.castShadow = true;
+      hotStonesGroup.add(s);
+      stones.push(s);
+    }
+    hotStonesGroup.visible = false;
+    massageToolsGroup.add(hotStonesGroup);
+
+    // 3. Ống tre massage Thái (Bamboo Roller)
+    const bambooGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.9, 24);
+    const bambooMat = new THREE.MeshStandardMaterial({ color: 0x9381ff, roughness: 0.4 });
+    // Dùng màu vàng tre
+    bambooMat.color.setHex(0xd4a373);
+    const bambooRoller = new THREE.Mesh(bambooGeo, bambooMat);
+    bambooRoller.rotation.z = Math.PI / 2;
+    bambooRoller.position.set(0, 1.6, -0.4);
+    bambooRoller.visible = false;
+    massageToolsGroup.add(bambooRoller);
+
+    /* --- HỆ THỐNG KHÓI HƯƠNG TRẦM SPA (PARTICLES) --- */
+    const particleCount = 60;
+    const particleGeo = new THREE.BufferGeometry();
+    const particlePositions = new Float32Array(particleCount * 3);
+    for (let i = 0; i < particleCount; i++) {
+      particlePositions[i * 3] = -1.8 + (Math.random() - 0.5) * 0.15;
+      particlePositions[i * 3 + 1] = 1.0 + Math.random() * 1.5;
+      particlePositions[i * 3 + 2] = -0.8 + (Math.random() - 0.5) * 0.15;
+    }
+    particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+    const particleMat = new THREE.PointsMaterial({
+      color: 0xe0e1dd,
+      size: 0.07,
+      transparent: true,
+      opacity: 0.4
+    });
+    const smokeParticles = new THREE.Points(particleGeo, particleMat);
+    scene.add(smokeParticles);
+
+    /* ==========================================================
+       4. ANIMATION & ĐIỀU KHIỂN CÁC PHƯƠNG PHÁP MASSAGE
+       ========================================================== */
+    let currentMode = 'shiatsu'; // 'shiatsu', 'oil', 'hotstone', 'thai'
+    let massageSpeed = 1.2;
+    let clock = new THREE.Clock();
+
+    // Lắng nghe chọn phương pháp massage
+    const therapyCards = document.querySelectorAll('.therapy-card');
+    therapyCards.forEach(card => {
+      card.addEventListener('click', () => {
+        therapyCards.forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+        currentMode = card.getAttribute('data-mode');
+        switchTherapyMode(currentMode);
+        playRelaxationChime();
+      });
+    });
+
+    function switchTherapyMode(mode) {
+      handGroup.visible = (mode === 'shiatsu' || mode === 'oil');
+      hotStonesGroup.visible = (mode === 'hotstone');
+      bambooRoller.visible = (mode === 'thai');
+    }
+
+    // Điều chỉnh tốc độ đấm / xoa bóp
+    const speedSlider = document.getElementById('speedSlider');
+    const speedVal = document.getElementById('speedVal');
+    speedSlider.addEventListener('input', (e) => {
+      massageSpeed = parseFloat(e.target.value);
+      speedVal.textContent = massageSpeed.toFixed(1) + 'x';
+    });
+
+    /* ==========================================================
+       5. CHUYỂN ĐỔI NHIỀU GÓC NHÌN CAMERA (MULTI-ANGLE VIEWS)
+       ========================================================== */
+    let targetCameraPos = new THREE.Vector3(0, 4.5, 6);
+    let targetLookAt = new THREE.Vector3(0, 1.2, 0);
+    let isTransitioningCamera = false;
+
+    const angleButtons = document.querySelectorAll('.angle-btn');
+    angleButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        angleButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const angle = btn.getAttribute('data-angle');
+        setCameraAngle(angle);
+      });
+    });
+
+    function setCameraAngle(angle) {
+      isTransitioningCamera = true;
+      switch (angle) {
+        case 'free':
+          targetCameraPos.set(0, 4.5, 6);
+          targetLookAt.set(0, 1.2, 0);
+          controls.enabled = true;
+          break;
+        case 'top': // Nhìn thẳng từ trên xuống
+          targetCameraPos.set(0, 7.5, -0.2);
+          targetLookAt.set(0, 1.3, -0.2);
+          controls.enabled = true;
+          break;
+        case 'closeup': // Cận cảnh lưng đấm bóp
+          targetCameraPos.set(0.9, 2.5, 0.4);
+          targetLookAt.set(0, 1.4, -0.3);
+          controls.enabled = true;
+          break;
+        case 'side': // Góc nghiêng thư giãn qua vai
+          targetCameraPos.set(-2.8, 2.2, -1.2);
+          targetLookAt.set(0, 1.35, -0.4);
+          controls.enabled = true;
+          break;
+        case 'first_person': // POV của khách nằm trên đệm
+          targetCameraPos.set(0, 1.36, -1.5);
+          targetLookAt.set(0, 0, -1.5);
+          controls.enabled = false; // Cố định góc nhìn người nằm
+          break;
+      }
+    }
+
+    // Hiển thị text bong bóng phản hồi thư giãn
+    const positiveWords = ["Thư giãn quá...", "Dễ chịu thật!", "Đã lưng ghê...", "Nhẹ cả người!", "Mềm cơ rồi!", "Rất đã!"];
+    let lastHitTime = 0;
+    function spawnRelaxBubble() {
+      const bubble = document.createElement('div');
+      bubble.className = 'hit-ripple';
+      bubble.textContent = positiveWords[Math.floor(Math.random() * positiveWords.length)];
+      bubble.style.left = (window.innerWidth / 2 + (Math.random() - 0.5) * 200) + 'px';
+      bubble.style.top = (window.innerHeight / 2 + (Math.random() - 0.5) * 80) + 'px';
+      bubble.style.color = ['#d4a373', '#81b29a', '#faedcd', '#f2cc8f'][Math.floor(Math.random() * 4)];
+      document.body.appendChild(bubble);
+      setTimeout(() => bubble.remove(), 1000);
+    }
+
+    /* ==========================================================
+       6. RENDER LOOP CHÍNH
+       ========================================================== */
+    let lastTapLeft = false;
+    let lastTapRight = false;
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const elapsedTime = clock.getElapsedTime() * massageSpeed;
+
+      // Cập nhật khói trầm hương
+      const pPositions = particleGeo.attributes.position.array;
+      for (let i = 0; i < particleCount; i++) {
+        pPositions[i * 3 + 1] += 0.007;
+        pPositions[i * 3] += Math.sin(elapsedTime + i) * 0.002;
+        if (pPositions[i * 3 + 1] > 2.8) {
+          pPositions[i * 3 + 1] = 1.02;
+          pPositions[i * 3] = -1.8 + (Math.random() - 0.5) * 0.1;
+        }
+      }
+      particleGeo.attributes.position.needsUpdate = true;
+
+      // Hiệu ứng ánh nến bập bùng
+      candleLight.intensity = 1.3 + Math.sin(elapsedTime * 6) * 0.25;
+
+      /* --- CHUYỂN ĐỘNG CỦA CÁC PHƯƠNG PHÁP MASSAGE --- */
+      if (currentMode === 'shiatsu') {
+        // Đấm lưng: Hai bàn tay luân phiên đấm bụp bụp
+        const tapCycle = elapsedTime * 4.5;
+        const leftY = 1.53 + Math.abs(Math.sin(tapCycle)) * 0.32;
+        const rightY = 1.53 + Math.abs(Math.cos(tapCycle)) * 0.32;
+
+        const spineTraverse = Math.sin(elapsedTime * 0.8) * 0.45 - 0.4; // Trượt dọc lưng
+        handLeft.position.set(-0.25, leftY, spineTraverse);
+        handRight.position.set(0.25, rightY, spineTraverse);
+
+        // Phát âm thanh khi tay vừa đấm trúng lưng
+        if (leftY < 1.56 && !lastTapLeft) {
+          playTapSound(105, 0.12);
+          lastTapLeft = true;
+          if (Date.now() - lastHitTime > 2500) {
+            spawnRelaxBubble();
+            lastHitTime = Date.now();
+          }
+        } else if (leftY > 1.6) {
+          lastTapLeft = false;
+        }
+
+        if (rightY < 1.56 && !lastTapRight) {
+          playTapSound(120, 0.12);
+          lastTapRight = true;
+        } else if (rightY > 1.6) {
+          lastTapRight = false;
+        }
+
+        // Nhấp nhô nhẹ lưng người nằm khi bị đấm
+        torso.position.y = 1.35 - (leftY < 1.56 || rightY < 1.56 ? 0.015 : 0);
+
+      } else if (currentMode === 'oil') {
+        // Xoa bóp tinh dầu: Xoay tròn lượn sóng dọc cơ lưng
+        const sweepZ = Math.sin(elapsedTime * 1.4) * 0.5 - 0.4;
+        const sweepRot = elapsedTime * 3;
+        handLeft.position.set(-0.22 + Math.cos(sweepRot) * 0.1, 1.52, sweepZ + Math.sin(sweepRot) * 0.1);
+        handRight.position.set(0.22 + Math.cos(sweepRot + Math.PI) * 0.1, 1.52, sweepZ + Math.sin(sweepRot + Math.PI) * 0.1);
+
+        if (Math.floor(elapsedTime * 2) % 4 === 0 && Math.random() < 0.03) {
+          playWhooshSound();
+        }
+        torso.position.y = 1.35;
+
+      } else if (currentMode === 'hotstone') {
+        // Đá nóng: Các viên đá phát sáng ấm dần và rung nhẹ
+        stones.forEach((s, idx) => {
+          s.position.y = 1.53 + Math.sin(elapsedTime * 2.5 + idx) * 0.02;
+          s.material.emissiveIntensity = 0.35 + Math.sin(elapsedTime * 2 + idx) * 0.2;
+        });
+
+      } else if (currentMode === 'thai') {
+        // Ống tre: Lăn đều từ thắt lưng lên cổ
+        const rollZ = Math.sin(elapsedTime * 1.6) * 0.55 - 0.4;
+        bambooRoller.position.z = rollZ;
+        bambooRoller.rotation.x = elapsedTime * 4; // Xoay vòng quanh trục
+        bambooRoller.position.y = 1.58;
+
+        if (Math.floor(elapsedTime * 2) % 3 === 0 && Math.random() < 0.03) {
+          playWhooshSound();
+        }
+      }
+
+      // Xoay biển tên nhẹ nhàng hướng về camera
+      if (nameMesh) {
+        nameMesh.lookAt(camera.position);
+      }
+
+      // Di chuyển Camera mượt mà (Smooth Camera Transition)
+      if (isTransitioningCamera) {
+        camera.position.lerp(targetCameraPos, 0.05);
+        controls.target.lerp(targetLookAt, 0.05);
+        if (camera.position.distanceTo(targetCameraPos) < 0.05) {
+          isTransitioningCamera = false;
+        }
+      }
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    // Responsive Canvas khi đổi kích thước màn hình
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Bắt đầu Render loop
+    animate();
+  </script>
+</body>
+</html>
