@@ -10,6 +10,10 @@
   <!-- Three.js & OrbitControls via CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <!-- Nạp mô hình người FBX (Microsoft Rocketbox, MIT) -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/fflate.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/TGALoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
   <!-- Canvas Confetti -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
@@ -148,6 +152,39 @@
 
     .name-input:focus {
       border-color: var(--primary);
+      box-shadow: 0 0 16px rgba(212, 163, 115, 0.35);
+    }
+
+    .gender-options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .gender-option input {
+      position: absolute;
+      opacity: 0;
+    }
+
+    .gender-option span {
+      display: block;
+      padding: 12px;
+      text-align: center;
+      background: rgba(18, 21, 22, 0.85);
+      border: 1.5px solid rgba(212, 163, 115, 0.4);
+      border-radius: 14px;
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .gender-option input:checked + span {
+      background: rgba(212, 163, 115, 0.25);
+      border-color: var(--primary);
+    }
+
+    .gender-option input:focus-visible + span {
       box-shadow: 0 0 16px rgba(212, 163, 115, 0.35);
     }
 
@@ -310,6 +347,36 @@
       color: #1a1614;
       border-color: transparent;
       box-shadow: 0 4px 16px rgba(212, 163, 115, 0.4);
+    }
+
+    .avatar-loading {
+      position: absolute;
+      top: 28px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 8px 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: 99px;
+      font-size: 0.82rem;
+      white-space: nowrap;
+    }
+
+    .avatar-loading[hidden] {
+      display: none;
+    }
+
+    /* Trình phát nhạc nền YouTube */
+    .music-player {
+      position: absolute;
+      top: 90px;
+      left: 24px;
+      width: 256px;
+      height: 200px;
+      border: 1px solid var(--border-card);
+      border-radius: 14px;
+      overflow: hidden;
+      background: #000;
     }
 
     /* Thanh điều khiển massage bên dưới */
@@ -482,6 +549,20 @@
         <input type="text" id="userNameInput" class="name-input" placeholder="Ví dụ: Hoàng Anh, Linh Đan..." maxlength="25" autofocus>
       </div>
 
+      <div class="input-group">
+        <span class="input-label">Người nằm massage:</span>
+        <div class="gender-options">
+          <label class="gender-option">
+            <input type="radio" name="patientGender" value="male" checked>
+            <span>Nam</span>
+          </label>
+          <label class="gender-option">
+            <input type="radio" name="patientGender" value="female">
+            <span>Nữ</span>
+          </label>
+        </div>
+      </div>
+
       <button id="btnStartSpa" class="btn-start">
         <span>Bắt đầu tận hưởng</span>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -514,6 +595,11 @@
         </div>
       </div>
     </div>
+
+    <div class="avatar-loading" id="avatarLoading" role="status" hidden></div>
+
+    <!-- Nhạc nền: ROSÉ & Ariana Grande (trình phát chính thức của YouTube) -->
+    <div class="music-player ui-interactive"><div id="ytPlayer"></div></div>
 
     <!-- Góc nhìn Camera (Multi-Angle Switcher) -->
     <div class="camera-angles-bar ui-interactive">
@@ -581,7 +667,7 @@
         <div class="control-item">
           <button id="toggleAmbienceBtn" class="action-icon-btn active">
             <span>🎵</span>
-            <span>Nhạc Thiền</span>
+            <span>Nhạc nền</span>
           </button>
         </div>
 
@@ -615,11 +701,13 @@
       }
       clientNameShow.textContent = clientName;
       welcomeModal.classList.add('hidden');
-      
+      loadPatientAvatar(document.querySelector('input[name="patientGender"]:checked').value);
+
       // Khởi động Web Audio Context sau tương tác người dùng
       initAudio();
       playRelaxationChime();
-      startZenPad();
+      experienceStarted = true;
+      if (isMusicPlaying) playBackgroundMusic();
 
       // Cập nhật biển tên trên mô hình 3D
       update3DNameLabel(clientName);
@@ -737,27 +825,51 @@
       } catch (e) {}
     }
 
-    // Nhạc nền thiền ambient liên tục
-    let droneNotes = [130.81, 164.81, 196.00]; // C - E - G chord
-    let droneIndex = 0;
-    function startZenPad() {
-      if (!audioCtx || !isMusicPlaying) return;
-      setInterval(() => {
-        if (!isMusicPlaying || !audioCtx) return;
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(droneNotes[droneIndex % droneNotes.length], audioCtx.currentTime);
-        droneIndex++;
-        gain.gain.setValueAtTime(0.001, audioCtx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.04, audioCtx.currentTime + 2.5);
-        gain.gain.linearRampToValueAtTime(0.0001, audioCtx.currentTime + 6.0);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 6.5);
-      }, 5000);
+    // Nhạc nền: playlist video chính thức, phát qua YouTube IFrame Player
+    const MUSIC_VIDEO_IDS = [
+      'ekr2nIex040', // ROSÉ & Bruno Mars - APT.
+      'KNtJGQkC-WI', // Ariana Grande - we can't be friends
+      'CKZvWhCqx1s', // ROSÉ - On The Ground
+      'kHLHSlExFis', // Ariana Grande - God is a woman
+      'ffxKSjUwKdU', // Ariana Grande - no tears left to cry
+      'gl1aHhXnN1k', // Ariana Grande - thank u, next
+      'QYh6mYIJG2Y'  // Ariana Grande - 7 rings
+    ];
+    let ytPlayer = null;
+    let ytReady = false;
+    let experienceStarted = false;
+
+    window.onYouTubeIframeAPIReady = function() {
+      ytPlayer = new YT.Player('ytPlayer', {
+        width: '100%',
+        height: '100%',
+        playerVars: {
+          listType: 'playlist',
+          playlist: MUSIC_VIDEO_IDS.join(','),
+          loop: 1,
+          playsinline: 1,
+          rel: 0,
+          origin: location.origin
+        },
+        events: {
+          onReady: (e) => {
+            ytReady = true;
+            e.target.setVolume(35); // Vẫn nghe được tiếng massage
+            if (experienceStarted && isMusicPlaying) e.target.playVideo();
+          },
+          // Video bị chặn ở quốc gia hiện tại thì chuyển bài tiếp theo
+          onError: (e) => e.target.nextVideo()
+        }
+      });
+    };
+
+    function playBackgroundMusic() {
+      if (ytReady) ytPlayer.playVideo();
     }
+
+    const ytApiScript = document.createElement('script');
+    ytApiScript.src = 'https://www.youtube.com/iframe_api';
+    document.head.appendChild(ytApiScript);
 
     // Nút bật/tắt âm thanh
     document.getElementById('toggleSoundBtn').addEventListener('click', function() {
@@ -770,6 +882,8 @@
     document.getElementById('toggleAmbienceBtn').addEventListener('click', function() {
       isMusicPlaying = !isMusicPlaying;
       this.classList.toggle('active', isMusicPlaying);
+      if (isMusicPlaying) playBackgroundMusic();
+      else if (ytReady) ytPlayer.pauseVideo();
     });
 
     /* ==========================================================
@@ -802,7 +916,7 @@
     const ambientLight = new THREE.AmbientLight(0xfff1e6, 0.7);
     scene.add(ambientLight);
 
-    const warmLight = new THREE.SpotLight(0xffb703, 1.8, 18, Math.PI / 4, 0.4);
+    const warmLight = new THREE.SpotLight(0xffe2c4, 0.9, 18, Math.PI / 4, 0.4);
     warmLight.position.set(3, 6, 2);
     warmLight.castShadow = true;
     warmLight.shadow.mapSize.width = 1024;
@@ -942,6 +1056,146 @@
     humanGroup.add(rightArm);
 
     scene.add(humanGroup);
+
+    /* --- MÔ HÌNH NGƯỜI CHÂN THỰC (Microsoft Rocketbox, license MIT) ---
+       Khối người đơn giản ở trên chỉ hiện trong lúc tải hoặc khi tải lỗi. */
+    const AVATAR_ROOT = 'https://raw.githubusercontent.com/microsoft/Microsoft-Rocketbox/master/Assets/Avatars/Adults/';
+    // backY: độ cao mặt lưng; towel: kích thước khăn [rộng, dài, cao]
+    const AVATARS = {
+      male: { id: 'Male_Adult_01', backY: 1.58, towel: [0.46, 1.05, 0.37] },
+      female: { id: 'Female_Adult_01', backY: 1.5, towel: [0.42, 1.05, 0.32] }
+    };
+    const MATTRESS_TOP_Y = 1.275;
+    const PATIENT_LENGTH = 3.3; // Chiều dài cơ thể theo tỉ lệ bàn massage trong cảnh
+    const TOOL_CONTACT_Y = 1.53;  // Độ cao tiếp xúc lưng mà animation dụng cụ đang dùng
+    let requestedGender = null;
+    let patient = null;
+    let patientBaseY = 0;
+
+    function poseAvatarProne(avatar) {
+      // Xoay xương sao cho đoạn bone -> child hướng theo direction (hệ toạ độ thế giới)
+      const aimBone = (boneName, childName, direction) => {
+        const bone = avatar.getObjectByName(boneName);
+        const child = avatar.getObjectByName(childName);
+        if (!bone || !child) return;
+        avatar.updateMatrixWorld(true);
+        const from = child.getWorldPosition(new THREE.Vector3())
+          .sub(bone.getWorldPosition(new THREE.Vector3())).normalize();
+        const delta = new THREE.Quaternion().setFromUnitVectors(from, direction.clone().normalize());
+        const parentQ = bone.parent.getWorldQuaternion(new THREE.Quaternion());
+        bone.quaternion.premultiply(parentQ.clone().invert().multiply(delta).multiply(parentQ));
+      };
+      // Hai cánh tay buông dọc thân người, hơi mở ra ngoài
+      [['L', 1], ['R', -1]].forEach(([side, sign]) => {
+        aimBone(`Bip01_${side}_UpperArm`, `Bip01_${side}_Forearm`, new THREE.Vector3(sign * 0.18, -1, 0));
+        aimBone(`Bip01_${side}_Forearm`, `Bip01_${side}_Hand`, new THREE.Vector3(sign * 0.1, -1, 0.05));
+        // Bàn chân duỗi theo chiều dài cơ thể để mũi giày không xuyên đệm
+        aimBone(`Bip01_${side}_Foot`, `Bip01_${side}_Toe0`, new THREE.Vector3(0, -1, 0.25));
+      });
+    }
+
+    function placeAvatarOnTable(avatar) {
+      // Nằm sấp: đỉnh đầu (+Y) hướng về gối (-Z), mặt (+Z) úp xuống (-Y)
+      avatar.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(
+        new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 0, -1), new THREE.Vector3(0, -1, 0)
+      ));
+      avatar.updateMatrixWorld(true);
+      const size = new THREE.Box3().setFromObject(avatar).getSize(new THREE.Vector3());
+      avatar.scale.multiplyScalar(PATIENT_LENGTH / size.z);
+      avatar.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(avatar);
+      // Hộp bao tính theo tư thế gốc nên cao hơn thực tế: hạ xuống cho ngực chạm đệm
+      avatar.position.y += MATTRESS_TOP_Y - box.min.y - 0.2;
+      // Đưa mặt vào đúng lỗ thở của gối
+      avatar.position.z += -0.45 - (box.min.z + box.max.z) / 2;
+      avatar.position.x -= (box.min.x + box.max.x) / 2;
+    }
+
+    function disposeAvatar(avatar) {
+      scene.remove(avatar);
+      avatar.traverse(o => {
+        if (!o.isMesh) return;
+        o.geometry.dispose();
+        [].concat(o.material).forEach(m => {
+          [m.map, m.normalMap, m.alphaMap].forEach(t => t && t.dispose());
+          m.dispose();
+        });
+      });
+    }
+
+    function loadPatientAvatar(gender) {
+      if (gender === requestedGender) return; // Chỉ đổi tên thì không tải lại
+      requestedGender = gender;
+      const config = AVATARS[gender];
+      const AVATAR_BASE = AVATAR_ROOT + config.id + '/';
+      const manager = new THREE.LoadingManager();
+      const loadingLabel = document.getElementById('avatarLoading');
+      const showProgress = (done, total) => {
+        if (gender !== requestedGender) return;
+        loadingLabel.textContent = `Đang tải mô hình người... ${done}/${total}`;
+      };
+      loadingLabel.hidden = false;
+      showProgress(0, 1);
+      if (!patient) humanGroup.visible = false; // Không hiện khối người giả trong lúc tải
+      manager.onProgress = (url, done, total) => showProgress(done, total);
+      // FBX lưu đường dẫn texture tuyệt đối từ máy tác giả: chỉ giữ tên file
+      manager.setURLModifier(url => {
+        const file = url.split(/[\\/]/).pop();
+        return /\.tga$/i.test(file) ? AVATAR_BASE + 'Textures/' + file : url;
+      });
+      const tgaLoader = new THREE.TGALoader(manager);
+      manager.addHandler(/\.tga$/i, {
+        setPath() { return this; },
+        setCrossOrigin() { return this; },
+        // Bỏ specular map (12 MB mỗi file) vì gần như không thấy khác biệt
+        load: (url, onLoad, onProgress, onError) =>
+          /specular/i.test(url) ? new THREE.Texture() : tgaLoader.load(url, onLoad, onProgress, onError)
+      });
+
+      new THREE.FBXLoader(manager).load(AVATAR_BASE + 'Export/' + config.id + '.fbx', avatar => {
+        avatar.traverse(o => {
+          if (!o.isMesh) return;
+          o.castShadow = true;
+          o.receiveShadow = true;
+          (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => {
+            m.color.set(0xffffff); // FBX khai báo màu đen, sẽ triệt tiêu texture
+            m.specularMap = null;
+            m.shininess = 12;
+            m.needsUpdate = true;
+          });
+        });
+        // FBX có sẵn đèn ambient riêng, làm sai ánh sáng phòng spa
+        avatar.remove(...avatar.children.filter(c => c.isLight));
+        poseAvatarProne(avatar);
+        placeAvatarOnTable(avatar);
+        loadedAvatar = avatar;
+      }, undefined, err => {
+        console.warn('Không tải được mô hình người, dùng mô hình đơn giản.', err);
+        if (gender === requestedGender) loadingLabel.hidden = true;
+        if (!patient) humanGroup.visible = true;
+      });
+
+      // Chỉ đổi sang người thật khi mọi texture đã xong, tránh hiện bóng đen lúc đang tải
+      let loadedAvatar = null;
+      manager.onLoad = () => {
+        // Khách đã đổi lựa chọn trong lúc tải thì bỏ kết quả cũ
+        if (!loadedAvatar || gender !== requestedGender) return;
+        const avatar = loadedAvatar;
+        loadingLabel.hidden = true;
+        humanGroup.visible = true;
+        if (patient) disposeAvatar(patient);
+        scene.add(avatar);
+        patient = avatar;
+        patientBaseY = avatar.position.y;
+        torso.visible = spine.visible = head.visible = leftArm.visible = rightArm.visible = false;
+        towel.geometry.dispose();
+        towel.geometry = new THREE.CylinderGeometry(1, 1, 1, 40, 1, false, -Math.PI / 2, Math.PI);
+        towel.rotation.x = -Math.PI / 2;
+        towel.scale.set(...config.towel);
+        towel.position.set(0, MATTRESS_TOP_Y, -0.08);
+        massageToolsGroup.position.y = config.backY - TOOL_CONTACT_Y;
+      };
+    }
 
     /* --- BIỂN TÊN KHÁCH HÀNG 3D TRÊN ĐẦU GIƯỜNG --- */
     let nameCanvas, nameTexture, nameMesh;
@@ -1269,6 +1523,8 @@
           playWhooshSound();
         }
       }
+
+      if (patient) patient.position.y = patientBaseY + (torso.position.y - 1.35);
 
       // Xoay biển tên nhẹ nhàng hướng về camera
       if (nameMesh) {
