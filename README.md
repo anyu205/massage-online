@@ -16,7 +16,7 @@ Sau đó mở http://localhost:5173. Lần đầu tải mô hình người có t
 
 ### Mô hình 3D
 
-Nhân vật người lấy từ [Microsoft Rocketbox](https://github.com/microsoft/Microsoft-Rocketbox), phát hành theo [giấy phép MIT](https://github.com/microsoft/Microsoft-Rocketbox/blob/master/LICENSE).
+Nhân vật người lấy từ [Microsoft Rocketbox](https://github.com/microsoft/Microsoft-Rocketbox), phát hành theo [giấy phép MIT](https://github.com/microsoft/Microsoft-Rocketbox/blob/master/LICENSE.md).
 Copyright (c) Microsoft Corporation. Mô hình được tải trực tiếp từ kho GitHub của Microsoft khi chạy, không được sao chép vào repo này.
 
 ### Nhạc nền
